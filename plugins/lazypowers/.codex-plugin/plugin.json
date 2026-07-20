@@ -1,0 +1,25 @@
+{
+  "name": "lazypowers",
+  "version": "0.3.1",
+  "description": "Instruction-only product-to-delivery orchestration over official Superpowers with transcript-first callbacks, exact Git verification, and absence-aware target verification",
+  "author": {
+    "name": "Lazypowers contributors"
+  },
+  "license": "MIT",
+  "keywords": ["product", "superpowers", "orchestration", "agents"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Lazypowers",
+    "shortDescription": "Product-to-delivery orchestration for Codex",
+    "longDescription": "An instruction-only Product workflow over official Superpowers. It keeps Product chat available while isolated task chats execute approved work, reconciles transcript-first callbacks, verifies exact Git delivery, and uses project-owned probes for absence-aware initial target verification without supplying an external-action adapter.",
+    "developerName": "Lazypowers contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Transcript-first reconciliation",
+      "Product-owned deployment authority",
+      "Absence-aware target-state probe gating",
+      "Target-lineage safety"
+    ],
+    "defaultPrompt": ["Use $lazypowers:product to turn an approved Product spec into absence-aware, verified delivery."]
+  }
+}
