@@ -1,7 +1,7 @@
 {
   "name": "lazypowers",
-  "version": "0.3.1",
-  "description": "Instruction-only product-to-delivery orchestration over official Superpowers with transcript-first callbacks, exact Git verification, and absence-aware target verification",
+  "version": "0.3.2",
+  "description": "Instruction-only Product delivery over official Superpowers with singular-result reconciliation and exact Git verification",
   "author": {
     "name": "Lazypowers contributors"
   },
@@ -11,15 +11,15 @@
   "interface": {
     "displayName": "Lazypowers",
     "shortDescription": "Product-to-delivery orchestration for Codex",
-    "longDescription": "An instruction-only Product workflow over official Superpowers. It keeps Product chat available while isolated task chats execute approved work, reconciles transcript-first callbacks, verifies exact Git delivery, and uses project-owned probes for absence-aware initial target verification without supplying an external-action adapter.",
+    "longDescription": "An instruction-only Product workflow over official Superpowers. It keeps Product chat available while isolated task chats execute approved work, reconciles the immutable singular engineering result from transcript-first callbacks, verifies exact Git delivery, and requires a separate Product approval for every external action. It supplies no runtime, daemon, guaranteed heartbeat, or deployment adapter.",
     "developerName": "Lazypowers contributors",
     "category": "Productivity",
     "capabilities": [
-      "Transcript-first reconciliation",
-      "Product-owned deployment authority",
-      "Absence-aware target-state probe gating",
-      "Target-lineage safety"
+      "Official Superpowers runner workflow",
+      "Transcript-first singular-result reconciliation",
+      "Exact Git delivery verification",
+      "Product-only external-action approval"
     ],
-    "defaultPrompt": ["Use $lazypowers:product to turn an approved Product spec into absence-aware, verified delivery."]
+    "defaultPrompt": ["Use $lazypowers:product to turn an approved Product spec into a singular-result, Git-verified delivery through official Superpowers."]
   }
 }

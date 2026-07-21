@@ -1,4 +1,4 @@
 interface:
   display_name: "Lazypowers Product"
-  short_description: "Transcript-first delivery, absence-aware target safety"
-  default_prompt: "Use $lazypowers:product to reconcile transcript-first callbacks, verify absence-aware target state with a project-owned probe, and keep deployment authority Product-owned."
+  short_description: "Singular-result reconciliation with Product approval"
+  default_prompt: "Use $lazypowers:product to reconcile a singular engineering result, verify exact Git delivery, and keep every external action Product-approved."

@@ -41,14 +41,15 @@ Use one numeric task folder:
   status.md
   result.md  # only the first accepted terminal engineering result
 ~~~
-Keep an approved `spec.md` immutable. Write at least this revision 9 shape to
+Keep an approved `spec.md` immutable. Write at least this revision 10 shape to
 `status.md`; use `null` until a value exists:
 
 ~~~yaml
 {task_id: NNN-short-slug, project_identity: null, status: draft, engineering_phase: pending, deployment_phase: none,
  deployment_authority_consumed: false, deployment_command_started: false, target_mutation_state: not_started, pending_callback_effect: null,
- queue_order: NNN, depends_on: [], queue_reason: null, product_thread_id: null, product_logical_host_id: null, product_transport_host_id: null,
+ queue_order: NNN, depends_on: [], queue_reason: null, superseded_by: null, supersede_reason: null, product_thread_id: null, product_logical_host_id: null, product_transport_host_id: null,
  task_thread_id: null, task_logical_host_id: null, task_transport_host_id: null, source_launch_marker: null, pending_client_thread_id: null, thread_cursor: null,
+ pending_task_title_effect: null,
  product_state_host_id: null, product_state_root: null, approved_state_payload_sha256: null, governance_source: null, legacy_governance_policy: null, governance_choice_requested: false,
  base_commit: null, branch: null, final_commit: null, callback_correction_attempts: 0, callback_receipts: [], callback_outbox: [], product_heartbeat: null, task_heartbeat: null,
  model_policy: auto, model_override: null, initial_model: null, initial_reasoning: null, initial_model_selection_reason: null, selected_model: null, selected_reasoning: null,
@@ -175,39 +176,82 @@ At the start of every Product turn and on each verified Product heartbeat:
 
 1. Read canonical Product state and reconcile pending target effects first as
    required by the lineage reference.
-2. Reconcile every other pending callback/outbox/receipt-marker/rescan effect
+2. Reconcile `pending_task_title_effect` from its saved exact thread/task/title
+   tuple. Retry only the identical saved effect until authoritative readback
+   confirms that exact thread/title, then clear it. Failure or ambiguity keeps
+   the same effect and never creates a replacement chat. Because title is only
+   UX metadata, an unresolved title effect does not block callback acceptance,
+   queue order, Git verification, or any other correctness transition.
+3. Reconcile every other pending callback/outbox/receipt-marker/rescan effect
    and every `pending_model_continuation_key` in durable/transcript order.
    Authoritative non-delivery permits only identical retry; do not read/apply a
    newer envelope until the earlier effect/retry is fully reconciled.
-3. Read the saved transcripts of every unfinished task, including commentary
+4. Read the saved transcripts of every unfinished task, including commentary
    produced before a source turn becomes terminal. Use platform wait snapshots
    only to locate new transcript state; read the source transcript for the
    complete envelope.
-4. Accept only an envelope read from that transcript after schema, canonical
+5. Accept only an envelope read from that transcript after schema, canonical
    source, payload hash, business, model, and applicable Git verification.
-5. Treat it as one logical exactly-once acceptance unit. For terminal
-   engineering, atomically create `result.md` as UTF-8 bytes of canonical
-   JSON plus one LF/no BOM. Its exact keys are `schema` (value
-   `lazypowers.result.v1`), complete unchanged `accepted_callback_envelope`, and
-   `receiver_verification`. The latter has exact `source_identity_verified`, `payload_sha256_verified`,
-   `business_fields_verified`, `model_fields_verified` all `true`, and `git` with exact `base_commit`, `base_commit_exists`, `final_commit`,
-   `final_commit_exists`, `sole_parent`, `branch_ref`, `branch_ref_commit`, and `direct_changed_paths` sorted by raw UTF-8. Changed COMPLETE uses
-   verified values; other outcomes use null for final/existence/parent/ref commit. Use the envelope canonical JSON rules and no transcript cursor,
-   timestamp, time, tool/run ID, or prose; later scan progress belongs only in status `thread_cursor`, so identical envelope/evidence reproduces the bytes.
-   Existing bytes must match. Hash these exact bytes as `result_sha256`, then
-   atomically write status with the receipt triple, phase/overall state,
+   Complete all fail-closed result-shape validation before receipt, status,
+   cursor, result creation, effect, or queue advancement.
+6. For the first valid terminal engineering envelope, build only this result
+   object with exactly the three top-level keys shown:
+
+   ~~~yaml
+   schema: lazypowers.result.v1
+   accepted_callback_envelope: exact complete terminal engineering envelope object
+   receiver_verification: exact deterministic verification object
+   ~~~
+
+   `accepted_callback_envelope` is one object, never an array. The deterministic
+   verification object has exact `source_identity_verified`,
+   `payload_sha256_verified`, `business_fields_verified`, and
+   `model_fields_verified` all `true`, plus `git` with exact `base_commit`,
+   `base_commit_exists`, `final_commit`, `final_commit_exists`, `sole_parent`,
+   `branch_ref`, `branch_ref_commit`, and `direct_changed_paths` sorted by raw
+   UTF-8. Changed COMPLETE uses verified values; other outcomes use null for
+   final/existence/parent/ref commit. Serialize by the envelope canonical JSON
+   rules as UTF-8, append exactly one LF, and use no BOM. Include no transcript
+   cursor, timestamp, time, tool/run ID, or prose. The first valid terminal
+   engineering `result.md` is immutable; hash these exact bytes as
+   `result_sha256`.
+7. Apply the full pre-effect boundary separately to every negative result
+   form. Reject `accepted_callback_envelopes` before receipt, status, cursor,
+   result, effect, or queue advancement. If `accepted_callback_envelope` is an
+   array, reject it before receipt, status, cursor, result, effect, or queue
+   advancement. Reject a second accepted envelope before receipt, status,
+   cursor, result, effect, or queue advancement. Reject any extra top-level key
+   before receipt, status, cursor, result, effect, or queue advancement. Reject
+   every rewrite or append attempt before receipt, status, cursor, result,
+   effect, or queue advancement. Reject any deployment or later-lifecycle
+   mutation of the engineering result before receipt, status, cursor, result,
+   effect, or queue advancement. A same key/revision with a different hash
+   fails closed before receipt, status, cursor, result, effect, or queue
+   advancement. None may partially create or advance any Product state/effect.
+8. Atomically create the exact result bytes. Existing bytes and
+   `result_sha256` must match; otherwise fail closed without a Product effect.
+   Then atomically write status with the receipt triple, phase/overall state,
    `thread_cursor`, and one `pending_callback_effect` binding result hash,
    exact receipt marker, and deterministic terminal-rescan marker.
-6. Do not consider it accepted until receipt/state/result and every applicable
+9. Do not consider it accepted until receipt/state/result and every applicable
    marker/rescan effect are durably committed or recoverably pending. Recover
    a crash between physical writes by revalidating the envelope and
    identical existing result, then completing status without rewrite. Publish
    the Product receipt marker only from the saved effect, confirm that exact
    marker by reading the Product transcript, idempotently run/resume rescan
    from its saved marker, and clear the effect only after both confirmations.
-7. On replay, do not rewrite `result.md`, repeat an effect, change counters, or
-   advance the queue again. Missing text, unavailable state, and temporary
-   errors remain inconclusive and never permit replacement launch.
+10. On replay, prove byte-identical result bytes, one receipt, one terminal
+   rescan, and no repeated queue advancement. Do not rewrite `result.md`,
+   repeat an effect, or change counters. Missing text, unavailable state, and
+   temporary errors remain inconclusive and never permit replacement launch.
+
+Keep every later lifecycle event in canonical status/outbox/effect/target
+records. Deployment evidence may reference `result.md` and `result_sha256`, but
+deployment must never mutate, change, rewrite, or append `result.md`. Reject
+such an attempt before receipt, status, cursor, result, effect, or queue
+advancement. Historical revision 9
+state, including task 014 incident evidence, is immutable: never migrate,
+normalize, or rewrite it into the revision 10 result shape.
 
 For every Product transcript effect, atomically save state plus the complete
 pending outbox/effect as its committed publication state, then emit it to the
@@ -239,6 +283,69 @@ If the callable platform lacks a verifiable same-thread heartbeat, state that
 unattended continuation is unavailable: leave production deployment blocked
 and recover ordinary callbacks at the next Product turn. Never replace this
 fallback with a daemon, polling process, or claim of unattended operation.
+
+## Retire only a never-launched superseded task
+
+Retirement is a Product-only canonical-state transition; a Runner never
+applies it. Retirement identical replay is a no-op only when every saved
+relation, reason, phase, status, and queue-reason value matches exactly;
+conflicting evidence fails closed without a partial effect. Treat the relation
+and reason as validated Product-owned retirement
+input, not as preexisting task state or a pre-retirement migration. Require
+`superseded_by` to identify an exact terminal superseding task whose overall
+status is `done`, and validate the exact reason before one atomic write:
+
+~~~yaml
+superseded_by: exact terminal task ID
+supersede_reason: exact validated Product-owned reason
+~~~
+
+Also require every never-launched/clean-state predicate:
+
+~~~yaml
+task_thread_id: null
+pending_client_thread_id: null
+source_launch_marker: null
+callback_receipts: []
+deployment_authority_consumed: false
+deployment_command_started: false
+target_mutation_state: not_started
+pending_task_title_effect: null
+~~~
+
+Also require no Product or task heartbeat, no `result.md`, empty callback
+outbox, no pending callback or model-continuation effect, and no pending
+deployment effect. Retirement creates no heartbeat, result, callback, receipt,
+outbox, deployment attempt/effect, target effect, task chat, or queue
+advancement. Any such lifecycle artifact or any mismatched supersede
+relation/reason fails closed.
+
+When every input and predicate matches, one atomic status write persists only:
+
+~~~yaml
+superseded_by: exact validated terminal task ID
+supersede_reason: exact validated Product-owned reason
+engineering_phase: blocked
+deployment_phase: none
+status: blocked
+queue_reason: exact same validated supersede_reason
+~~~
+
+Retirement identical replay checks all six saved values and is a no-op only
+when every value matches exactly. Any conflicting saved relation, reason,
+phase, status, or queue reason fails closed without a partial effect.
+
+After valid acceptance of `015-internal-pilot-stabilization`, Product may apply
+this transition only to `012-lazypowers-public-release-v2`, with
+`superseded_by: 014-lazypowers-public-release-v3` and this exact saved reason:
+
+~~~text
+superseded by completed release path 014-lazypowers-public-release-v3; retired after stabilization 015-internal-pilot-stabilization
+~~~
+
+Do not migrate or normalize any other historical revision 9 task, including
+006, 008, 010, 011, 013, or 014. Keep task 014 `result.md` unchanged as
+immutable incident evidence.
 ## Decide readiness, lineage, and model exactly
 
 Treat a task as ready only when dependencies are `done`, paths do not conflict,
@@ -289,6 +396,24 @@ Save returned client ID immediately; authoritatively resolve one thread ID and
 save its current transport binding separately as `task_transport_host_id`.
 Zero matches remain pending; multiple matches block resolution. Any saved
 temporary/final identity forbids a replacement chat.
+
+After authoritative resolution of the one exact `task_thread_id`, atomically
+save one title effect as `pending_task_title_effect`, bound to that thread ID,
+exact task ID, and this computed title; then apply it only to that thread:
+
+~~~text
+NNN — <title from approved spec frontmatter>
+~~~
+
+Take `NNN` from the exact task ID and the title text verbatim from immutable
+approved `spec.md`. Exact task 015 title is
+`015 — Стабилизация перед внутренним пилотом`. Identical replay is a no-op.
+Failure or ambiguity keeps the same pending effect for identical retry and
+never creates a replacement chat. Clear the effect only after authoritative
+read confirms the exact thread/title. The visible title is UX metadata only: it
+is never callback/source identity, never enters a canonical payload/hash, and
+is not a callback acceptance, queue-order, Git-verification, or correctness
+gate.
 
 Handoff the approved spec, exact base/ref, `project_identity`, exact saved
 `task_logical_host_id`, Product source identity, immutable launch marker/state
