@@ -88,7 +88,12 @@ task_id: NNN-short-slug
 state: draft
 task_thread_id: null
 title: NNN — Human-readable title
+launch_marker: null
+client_thread_id: null
 ```
+
+Treat `launch_marker` and `client_thread_id` as optional when reading an
+existing v1 record. Write both fields for every new draft.
 
 Allow only `draft|queued|launching|launched`.
 
@@ -96,6 +101,11 @@ Product may revise a draft. If the user changes a queued specification, first
 return it to `draft`, apply the change, and show the revised summary. Never
 change a launched specification; a material follow-up is a new task. Keep
 `dispatch.title` equal to `NNN — <spec title>` while the task is a draft.
+
+Before ordinary approval, combined approval, or manual dispatch, fresh-read
+both files and require `dispatch.title == "NNN — <spec title>"` before any state change or create.
+Derive `NNN` and the spec title from the fresh-read task ID and spec. Only after
+this validation may title assignment use `dispatch.title`.
 
 ## Queue only after direct approval
 
@@ -110,10 +120,14 @@ NNN — <title>
 ```
 
 When the user directly agrees, fresh-read both files, require matching task IDs
-and `state: draft`, then change only the state to `queued`.
+and `state: draft`, then change only the state to `queued`. A direct
+affirmative answer changes only `draft → queued`.
 
-Approval never launches a task. Do not create a task chat until the user gives
-a separate manual dispatch command.
+When the same user message explicitly approves the current draft and says
+«подтверждаю и запускай», fresh-read the draft, write `queued`, and immediately
+begin local dispatch in the same turn. When it says «подтверждаю и запускай
+через $mini», make the same transition and hand the create transaction to
+`$mini` for remote routing. Do not ask for a second approval.
 
 ## Show the manual queue
 
@@ -138,20 +152,26 @@ Support:
 
 For each selected task:
 
-1. fresh-read its `spec.md` and `dispatch.md`;
-2. require the exact schema, matching task IDs, `attempt_limit: 3`, an absolute
-   project root, `state: queued`, and require the dispatch title to equal
-   `NNN — <spec title>`;
-3. write only `state: launching` before create;
-4. call the platform's visible thread-creation tool exactly once in the
-   specification's project root;
-5. require one exact returned thread ID;
-6. write that ID and `state: launched`;
-7. set the visible title from `dispatch.title`;
-8. report the created task chat to the user;
-9. stop all Product work for that task.
+1. Fresh-read spec and dispatch. Require the exact schema, matching task IDs,
+   `attempt_limit: 3`, an absolute project root, and the pre-dispatch title
+   equality above. If state is `launching`, run recovery and do not call create.
+   Otherwise require `state: queued`.
+2. Generate one UUID and persist
+   `launch_marker: lazypowers.launch.v1:<task_id>:<uuid>`,
+   `client_thread_id: null`, and `state: launching`.
+3. Put the exact launch marker on the first line of the create prompt.
+4. Call `create_thread` exactly once.
+5. If it returns `threadId`, persist it and `state: launched`.
+6. If it returns only `clientThreadId`, persist that value and run automatic
+   resolution.
+7. Never generate another marker or call create again while the same record is
+   `launching`.
 
 Never launch the next queued task because another task appears finished.
+
+Absent model, reasoning, base/ref, or other starting-state bindings are omitted
+from the tool call so platform defaults apply. Pass only bindings explicitly
+requested by the user.
 
 ## Give the Runner one complete handoff
 
@@ -181,11 +201,6 @@ task-чате.
 разрешение платформы запрашивай у пользователя только в этом task-чате.
 ```
 
-When the create surface exposes model selection, request
-`gpt-5.6-terra` with `high` reasoning unless the user explicitly overrides it.
-If that pair is unavailable, use the platform default and mention the
-substitution once in the created task chat; do not block Product dispatch.
-
 An attempt is consumed only when the specification's final action actually
 starts. Diagnosis, read-only inspection, preflight, development tests, code
 changes, permission prompts, and a command authoritatively known not to have
@@ -196,20 +211,32 @@ state. Otherwise ask the user in the task chat.
 ## Handle only dispatch errors
 
 If create authoritatively reports that no chat was created, return
-`launching → queued`, report the failure, and wait for another manual dispatch
-command.
+`launching → queued` by atomically persisting `state: queued`,
+`launch_marker: null`, and `client_thread_id: null`; report the failure and
+wait for another manual dispatch command.
 
-If create does not yield one reliable thread ID, keep `state: launching`,
-create no replacement, and ask the user to inspect visible chats and decide
-whether to bind one exact chat or return the task to the queue.
+Automatic resolution performs no more than four fresh `list_threads` reads
+within 60 seconds. Match the exact launch marker from the initial prompt.
+Deduplicate candidates by exact thread ID before counting them.
 
-If the chat exists but title assignment fails, keep `state: launched` and its
-exact thread ID. Report the title failure once. Do not retry the title.
+- Zero distinct IDs: keep `launching`; on the next Product interaction resume
+  lookup before any create. Do not ask the user to find a thread ID.
+- One distinct ID: persist `task_thread_id` and `state: launched`.
+- Two or more distinct IDs: keep `launching`, create no replacement, and ask
+  the user to choose one exact ID.
+
+After one final ID exists, call `set_thread_title` with exact
+`dispatch.title`, fresh-read the title, and perform one idempotent rename retry
+only when readback mismatches. A second mismatch keeps `launched`, reports the
+title error once, and ends dispatch.
 
 If capacity blocks create, return the task to `queued`. Do not schedule a
 background retry.
 
 ## Stop after dispatch
+
+Immediately after binding and title completion, report the created task chat
+and stop all Product work for that task.
 
 Do not read, wait for, or message the task chat after dispatch.
 

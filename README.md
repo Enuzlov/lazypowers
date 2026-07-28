@@ -36,7 +36,7 @@ codex plugin add lazypowers@lazypowers
 codex plugin list --marketplace lazypowers --json
 ```
 
-The plugin must report version `0.4.0`. In a new Product chat, invoke:
+The plugin must report version `0.4.1`. In a new Product chat, invoke:
 
 ```text
 $lazypowers:product Помоги описать задачу, сохранить её в очередь и запустить в отдельном чате.
@@ -44,15 +44,17 @@ $lazypowers:product Помоги описать задачу, сохранить
 
 ## Workflow
 
-1. Discuss the desired result in the Product chat.
-2. Product saves the draft under `.lazypowers/tasks/NNN-short-slug/spec.md`.
-3. Approve the specification to place it in the manual queue.
-4. Say `запусти следующую` or name one or more queued task numbers.
-5. Continue every implementation, permission, Git, retry, deployment, and
-   completion conversation directly in the created task chat.
+1. Discuss and save a specification.
+2. Say «да» to keep it queued, or «подтверждаю и запускай» to create its local
+   task chat immediately.
+3. Say «подтверждаю и запускай через $mini» to route the same standard spec to
+   the configured Mac mini project.
+4. Continue all implementation conversation in the created task chat.
 
-Approval never launches a task automatically. Product creates a task chat only
-after a manual launch command.
+Execution bindings are optional. When they are absent, Lazypowers and `$mini`
+use the platform's project, model, and reasoning defaults. Product resolves an
+asynchronous create automatically and applies the exact title
+`NNN — <spec title>` before it stops.
 
 The task chat starts with `superpowers:writing-plans`, uses official
 Superpowers throughout, and may make at most three actual final-action attempts
@@ -62,7 +64,7 @@ with systematic debugging between failures.
 
 Nothing.
 
-After Product saves the exact task thread ID and sets the visible title
+After Product saves the exact task thread ID and applies the visible title
 `NNN — <spec title>`, it stops working with that task. It does not:
 
 - monitor or wait for the task chat;

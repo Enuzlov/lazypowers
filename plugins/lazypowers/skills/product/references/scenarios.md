@@ -1,84 +1,58 @@
 # Сценарии тонкого Product-диспетчера
 
-Ровно три сценария проверяют всю активную поверхность Lazypowers 0.4.0.
+Ровно три сценария проверяют всю активную поверхность Lazypowers 0.4.1.
 
-## Сценарий 1: Draft и ручная очередь
-
-### Given
-
-- Исторические каталоги имеют номера `001`–`024`, но не содержат
-  `lazypowers.dispatch.v1`.
-- Пользователь обсуждает новую задачу с Product.
-
-### When
-
-1. Product выделяет `025-short-slug`.
-2. Сохраняет минимальные `spec.md` и `dispatch.md` со `state: draft`.
-3. Показывает результат, критерии готовности и конечное действие.
-4. Пользователь прямо отвечает «да».
-
-### Then
-
-- Меняется только `dispatch.state: queued`.
-- `spec.md` остаётся сохранён на диске.
-- Task-чат не создаётся.
-- «Покажи очередь» выводит `025 — <title>`.
-- Исторические каталоги не меняются и не попадают в очередь.
-- Если queued-спека изменяется, она сначала возвращается в `draft`.
-
-## Сценарий 2: Успешный единичный dispatch
+## Сценарий 1: Combined local approval и launch
 
 ### Given
 
-- `025-short-slug` имеет валидные `spec.md` и
-  `lazypowers.dispatch.v1` со `state: queued`.
-- Пользователь говорит «запусти следующую».
+- Product сохранил `025-short-slug` со `state: draft`.
 
-### When
+### When / Then
 
-1. Product fresh-read проверяет task ID, absolute project root и
-   `attempt_limit: 3`.
-2. Записывает `state: launching`.
-3. Один раз создаёт видимый task-чат.
-4. Получает точный thread ID.
-5. Записывает `state: launched` и thread ID.
-6. Устанавливает название `025 — <title>`.
-7. Передаёт полный `spec.md` и Runner-инструкцию.
+- Product проверяет `dispatch.title == "025 — <spec title>"` до любого state change или create.
+- На обычное прямое «да» Product fresh-read проверяет task ID и меняет только
+  `draft → queued`; create не вызывается.
+- На одно сообщение «подтверждаю и запускай» Product fresh-read проверяет тот
+  же draft, записывает `queued` и в этом же turn начинает local create
+  transaction без второго подтверждения.
+- Transaction сохраняет один launch marker до единственного `create_thread`.
 
-### Then
-
-- Создан ровно один task-чат.
-- Runner начинает с `superpowers:writing-plans` и использует официальный
-  Superpowers.
-- Утверждённая спека разрешает прямо названное конечное действие без повторного
-  Product-подтверждения; platform permission остаётся в task-чате.
-- По умолчанию запрошен `gpt-5.6-terra + high`.
-- Runner имеет максимум три фактически начатые попытки конечного действия и
-  применяет systematic debugging между неудачами.
-- Product сообщает созданный чат и прекращает работу с задачей.
-- Product не читает, не ждёт и не отправляет сообщения в task-чат.
-- Завершение задачи не запускает следующую queued-спеку.
-
-## Сценарий 3: Неоднозначный create
+## Сценарий 2: Async Mac mini launch
 
 ### Given
 
-- Queued-задача переведена в `state: launching`.
+- Пользователь говорит «подтверждаю и запускай через $mini».
+- Model, reasoning и starting-state bindings отсутствуют.
 
 ### When
 
-- Create не возвращает один достоверный thread ID.
+1. Product передаёт `$mini` transaction без отсутствующих execution bindings.
+2. Remote create возвращает один `clientThreadId`.
+3. Fresh lookup возвращает две host-alias rows с одним и тем же final thread ID.
+4. Product дедуплицирует rows по exact thread ID.
 
 ### Then
 
-- Состояние остаётся `launching`.
-- Replacement-чат не создаётся.
-- Product просит пользователя вручную найти и привязать один существующий чат
-  либо вернуть задачу в очередь.
+- Сохраняется один final `task_thread_id` и `state: launched`.
+- `set_thread_title` получает точное numbered title `025 — <spec title>`.
+- Product проверяет title readback и прекращает работу с задачей.
 
-Дополнительная ветка того же сценария:
+## Сценарий 3: Recovery без duplicate create
 
-- если create достоверно не создал чат, Product возвращает `queued`;
-- если точный чат создан, но title update завершился ошибкой, Product сохраняет
-  `launched` и thread ID, один раз сообщает об ошибке названия и не повторяет
-  update.
+### Given
+
+- Existing dispatch уже имеет `state: launching`, launch marker и, возможно,
+  `client_thread_id`.
+
+### When / Then
+
+- Product всегда выполняет recovery-before-create и не генерирует новый marker.
+- Zero candidates оставляет `launching`; следующая Product interaction
+  возобновляет lookup без duplicate create и без просьбы найти thread ID.
+- Two distinct IDs оставляют `launching`; replacement не создаётся, а Product
+  просит пользователя выбрать один exact ID.
+- Authoritative no-create возвращает задачу в `queued`.
+- После final binding title mismatch вызывает один idempotent retry; повторная
+  title failure сохраняет `launched`, сообщает ошибку один раз и завершает
+  dispatch.

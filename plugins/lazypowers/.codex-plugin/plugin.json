@@ -1,6 +1,6 @@
 {
   "name": "lazypowers",
-  "version": "0.4.0+codex.20260727222113",
+  "version": "0.4.1+codex.20260728213758",
   "description": "Instruction-only Product chat with a manual specification queue and one-way Superpowers task dispatch",
   "author": {
     "name": "Lazypowers contributors"
@@ -15,14 +15,14 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Lazypowers",
-    "shortDescription": "Manual Superpowers task dispatcher",
+    "shortDescription": "Fast manual Superpowers dispatcher",
     "longDescription": "Save product specifications to a small manual queue, create and name one visible Superpowers task chat on command, then stop monitoring it. The task chat owns implementation, Git, retries, permissions, deployment, and final reporting.",
     "developerName": "Lazypowers contributors",
     "category": "Productivity",
     "capabilities": [
       "Disk-backed specification drafts",
-      "Manual numbered task queue",
-      "One visible Superpowers task chat per dispatch",
+      "Manual queue with optional approve-and-launch",
+      "Automatic task-chat binding and exact titles",
       "No Product monitoring after dispatch"
     ],
     "defaultPrompt": [
