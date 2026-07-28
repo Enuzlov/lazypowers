@@ -1,25 +1,32 @@
 {
   "name": "lazypowers",
-  "version": "0.3.2",
-  "description": "Instruction-only Product delivery over official Superpowers with singular-result reconciliation and exact Git verification",
+  "version": "0.4.0+codex.20260727222113",
+  "description": "Instruction-only Product chat with a manual specification queue and one-way Superpowers task dispatch",
   "author": {
     "name": "Lazypowers contributors"
   },
   "license": "MIT",
-  "keywords": ["product", "superpowers", "orchestration", "agents"],
+  "keywords": [
+    "product",
+    "superpowers",
+    "orchestration",
+    "agents"
+  ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Lazypowers",
-    "shortDescription": "Product-to-delivery orchestration for Codex",
-    "longDescription": "An instruction-only Product workflow over official Superpowers. It keeps Product chat available while isolated task chats execute approved work, reconciles the immutable singular engineering result from transcript-first callbacks, verifies exact Git delivery, and requires a separate Product approval for every external action. It supplies no runtime, daemon, guaranteed heartbeat, or deployment adapter.",
+    "shortDescription": "Manual Superpowers task dispatcher",
+    "longDescription": "Save product specifications to a small manual queue, create and name one visible Superpowers task chat on command, then stop monitoring it. The task chat owns implementation, Git, retries, permissions, deployment, and final reporting.",
     "developerName": "Lazypowers contributors",
     "category": "Productivity",
     "capabilities": [
-      "Official Superpowers runner workflow",
-      "Transcript-first singular-result reconciliation",
-      "Exact Git delivery verification",
-      "Product-only external-action approval"
+      "Disk-backed specification drafts",
+      "Manual numbered task queue",
+      "One visible Superpowers task chat per dispatch",
+      "No Product monitoring after dispatch"
     ],
-    "defaultPrompt": ["Use $lazypowers:product to turn an approved Product spec into a singular-result, Git-verified delivery through official Superpowers."]
+    "defaultPrompt": [
+      "Use $lazypowers:product to draft a specification, place it in the manual queue, and dispatch it to a separate Superpowers task chat."
+    ]
   }
 }

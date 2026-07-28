@@ -1,29 +1,29 @@
 # Lazypowers
 
-Lazypowers is an instruction-only Product workflow for Codex. It keeps the
-Product chat available while isolated Runner task chats use official
-Superpowers to implement approved specifications and return Git-verifiable,
-transcript-first engineering callbacks.
+Lazypowers is a thin, instruction-only Product dispatcher for Codex. It saves
+product specifications to a small manual queue and creates one separate visible
+task chat for each task the user chooses to launch. Official Superpowers owns
+all implementation work inside that task chat.
 
 ## Prerequisites
 
-- Codex and a Git repository for the work.
-- Official Superpowers, which owns planning, TDD, debugging, review,
-  verification, and branch finishing inside each Runner task chat.
-- Permission to create local task worktrees. Lazypowers does not grant
-  permission for external actions.
+- Codex and a project workspace.
+- Official Superpowers.
+- Permission to create visible Codex task chats and isolated worktrees.
+
+Lazypowers includes no runtime, database, daemon, scheduler, poller, deployment
+adapter, callback transport, or Git automation.
 
 ## Install official Superpowers
 
 In the Codex app, open **Plugins**, find **Superpowers** in the Coding category,
 and install it from the official Codex plugin marketplace. In Codex CLI, open
-`/plugins`, search for `superpowers`, and select **Install Plugin**. Start a
-new Codex task after installation so the official skills are available.
+`/plugins`, search for `superpowers`, and select **Install Plugin**. Start a new
+task after installation so the official skills are available.
 
 ## Install Lazypowers
 
-Use the Git-backed Lazypowers marketplace. Do not create or install a personal
-marketplace/local duplicate of Lazypowers.
+Use the Git-backed Lazypowers marketplace:
 
 ```bash
 codex plugin marketplace add Enuzlov/lazypowers
@@ -32,92 +32,93 @@ codex plugin add lazypowers@lazypowers
 
 ## Verify
 
-Confirm that the GitHub marketplace provides the expected plugin version:
-
 ```bash
 codex plugin list --marketplace lazypowers --json
 ```
 
-The installed `lazypowers` plugin must report version `0.3.2`. In a new Product
-chat, invoke the skill explicitly:
+The plugin must report version `0.4.0`. In a new Product chat, invoke:
 
 ```text
-$lazypowers:product Help me turn this product idea into an approved specification and verified Git delivery.
+$lazypowers:product Помоги описать задачу, сохранить её в очередь и запустить в отдельном чате.
 ```
 
-If the skill is available, Codex recognizes `$lazypowers:product`; the Product
-chat can then save and discuss a specification before anything is launched.
+## Workflow
 
-## First workflow
+1. Discuss the desired result in the Product chat.
+2. Product saves the draft under `.lazypowers/tasks/NNN-short-slug/spec.md`.
+3. Approve the specification to place it in the manual queue.
+4. Say `запусти следующую` or name one or more queued task numbers.
+5. Continue every implementation, permission, Git, retry, deployment, and
+   completion conversation directly in the created task chat.
 
-1. Discuss the outcome in the Product chat and save the approved specification.
-2. Approve that saved specification. Lazypowers queues it numerically, or runs
-   it in parallel only when the platform supplies an authoritative current
-   capacity signal; otherwise it uses sequential fallback.
-3. Product resolves one visible, isolated Runner task chat. These numbered visible task chats use
-   `NNN — <approved spec title>` so the queue is transparent. The title is
-   UX-only metadata: it is not callback identity, Git evidence, or a
-   correctness gate.
-4. The Runner uses official Superpowers and publishes its full engineering
-   callback in its own transcript. Product reconciles the first valid terminal
-   callback as one immutable singular engineering result and verifies the exact
-   Git base, commit, parent, branch, and changed paths.
-5. Any deployment or other external action needs a separate, direct Product
-   approval after engineering verification. Specification approval alone is
-   never external-action authority.
+Approval never launches a task automatically. Product creates a task chat only
+after a manual launch command.
+
+The task chat starts with `superpowers:writing-plans`, uses official
+Superpowers throughout, and may make at most three actual final-action attempts
+with systematic debugging between failures.
+
+## What Product does after launch
+
+Nothing.
+
+After Product saves the exact task thread ID and sets the visible title
+`NNN — <spec title>`, it stops working with that task. It does not:
+
+- monitor or wait for the task chat;
+- receive callbacks or heartbeat messages;
+- reconcile status;
+- verify commits or branches;
+- integrate or clean up worktrees;
+- approve deployment attempts;
+- track target lineage;
+- record completion.
+
+The user supervises the work directly in the task chat.
+
+## Queue files
+
+New tasks use:
+
+```text
+.lazypowers/tasks/NNN-short-slug/
+  spec.md
+  dispatch.md
+```
+
+`dispatch.md` uses schema `lazypowers.dispatch.v1` and states `draft`,
+`queued`, `launching`, or `launched`. Existing historical Lazypowers state is
+left untouched and ignored by the new queue unless it contains that exact
+dispatch schema.
+
+## Errors
+
+- Authoritative create failure returns the task to `queued`.
+- Ambiguous create leaves it `launching`; Product does not create a replacement.
+- Title failure keeps the task `launched` and is reported once.
+- Missing capacity leaves the task queued with no background retry.
+- Missing Superpowers is handled in the task chat, not by Product.
 
 ## Upgrade
-
-Refresh the GitHub marketplace, then reinstall the same marketplace plugin;
-this updates Lazypowers without introducing a personal duplicate:
 
 ```bash
 codex plugin marketplace upgrade lazypowers
 codex plugin add lazypowers@lazypowers
 ```
 
-## Uninstall
+Start a new Product chat after upgrading so Codex loads the new skill.
 
-To uninstall Lazypowers, remove the installed GitHub-marketplace plugin:
+## Uninstall
 
 ```bash
 codex plugin remove lazypowers@lazypowers
 ```
 
-Remove the `lazypowers` marketplace only if no other plugin from it is needed:
+Remove the marketplace only if no other plugin from it is needed:
 
 ```bash
 codex plugin marketplace remove lazypowers
 ```
-
-## Limitations
-
-Lazypowers stores durable Product state as ordinary Markdown under
-`.lazypowers/`; it has no runtime, database, daemon, scheduler, polling
-process, metrics service, or built-in deployment adapter. It does not promise
-unattended continuation or a guaranteed heartbeat. Parallel work depends on
-authoritative capacity, and model choices depend on models the platform
-currently exposes.
-
-When a callable platform cannot provide a verifiable same-thread heartbeat,
-unattended continuation is unavailable. A callback already published in the
-Runner transcript is reconciled on the next Product turn instead. Product
-still requires separate approval for every external action and cannot bypass
-platform permissions.
-
-## Troubleshooting
-
-- **`$lazypowers:product` is missing:** confirm official Superpowers is
-  installed, confirm `lazypowers@lazypowers` appears in the GitHub marketplace,
-  then start a new Codex task.
-- **An old plugin version remains visible:** run the upgrade commands above,
-  verify `0.3.2` with `codex plugin list --marketplace lazypowers --json`, and
-  start a new task so Codex does not use stale plugin context.
-- **Superpowers is unavailable in a Runner:** install it from the official
-  Codex marketplace and launch a new Runner only after it is available.
-- **A callback seems delayed:** do not create a replacement task chat. If a
-  verifiable heartbeat is unavailable, return to the Product chat; it pulls
-  and reconciles the published callback on the next Product turn.
 
 ## License
 

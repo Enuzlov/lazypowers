@@ -1,4 +1,4 @@
 interface:
   display_name: "Lazypowers Product"
-  short_description: "Singular-result reconciliation with Product approval"
-  default_prompt: "Use $lazypowers:product to reconcile a singular engineering result, verify exact Git delivery, and keep every external action Product-approved."
+  short_description: "Manual Superpowers task dispatcher"
+  default_prompt: "Use $lazypowers:product to draft a specification, queue it, and dispatch it to a separate Superpowers task chat."
