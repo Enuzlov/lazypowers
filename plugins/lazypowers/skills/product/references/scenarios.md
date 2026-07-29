@@ -1,58 +1,66 @@
-# Сценарии тонкого Product-диспетчера
+# Сценарии Product handoff
 
-Ровно три сценария проверяют всю активную поверхность Lazypowers 0.4.1.
+Ровно три сценария проверяют активную поверхность Lazypowers 0.4.3.
 
-## Сценарий 1: Combined local approval и launch
+## Сценарий 1: Передача при пассивной очереди
 
 ### Given
 
-- Product сохранил `025-short-slug` со `state: draft`.
+- Пользователь явно говорит «создай новый продуктовый чат».
+- Каноническая очередь содержит `draft`, `queued` и нескольких `launched`,
+  включая одновременно работающие независимые Runner.
+- Ни один валидный `lazypowers.dispatch.v1` не остаётся в неразрешённом
+  `launching`.
 
 ### When / Then
 
-- Product проверяет `dispatch.title == "025 — <spec title>"` до любого state change или create.
-- На обычное прямое «да» Product fresh-read проверяет task ID и меняет только
-  `draft → queued`; create не вызывается.
-- На одно сообщение «подтверждаю и запускай» Product fresh-read проверяет тот
-  же draft, записывает `queued` и в этом же turn начинает local create
-  transaction без второго подтверждения.
-- Transaction сохраняет один launch marker до единственного `create_thread`.
+- Product не считает пассивную очередь или активные Runner блокером и не
+  изменяет ни один task-файл.
+- Product создаёт ровно один successor в том же exact project root и задаёт
+  точное название `Lazypowers Product`.
+- Successor fresh-read читает применимые инструкции проекта,
+  `git show refs/heads/main:docs/spec.md` и канонические
+  `.lazypowers/tasks/`; снимок или копия очереди не передаётся.
+- Только после успешного binding и exact naming старый Product прекращает
+  Product-мутации и не мониторит новый чат.
 
-## Сценарий 2: Async Mac mini launch
-
-### Given
-
-- Пользователь говорит «подтверждаю и запускай через $mini».
-- Model, reasoning и starting-state bindings отсутствуют.
-
-### When
-
-1. Product передаёт `$mini` transaction без отсутствующих execution bindings.
-2. Remote create возвращает один `clientThreadId`.
-3. Fresh lookup возвращает две host-alias rows с одним и тем же final thread ID.
-4. Product дедуплицирует rows по exact thread ID.
-
-### Then
-
-- Сохраняется один final `task_thread_id` и `state: launched`.
-- `set_thread_title` получает точное numbered title `025 — <spec title>`.
-- Product проверяет title readback и прекращает работу с задачей.
-
-## Сценарий 3: Recovery без duplicate create
+## Сценарий 2: Независимые task-запуски
 
 ### Given
 
-- Existing dispatch уже имеет `state: launching`, launch marker и, возможно,
-  `client_thread_id`.
+- Пользователь выбирает несколько независимых задач из `queued`.
+- Другие задачи уже имеют `state: launched` и продолжают выполняться в
+  отдельных task-чатах и изолированных worktree.
+- У одной task-create транзакции может временно оставаться
+  `state: launching`.
 
 ### When / Then
 
-- Product всегда выполняет recovery-before-create и не генерирует новый marker.
-- Zero candidates оставляет `launching`; следующая Product interaction
-  возобновляет lookup без duplicate create и без просьбы найти thread ID.
-- Two distinct IDs оставляют `launching`; replacement не создаётся, а Product
-  просит пользователя выбрать один exact ID.
-- Authoritative no-create возвращает задачу в `queued`.
-- После final binding title mismatch вызывает один idempotent retry; повторная
-  title failure сохраняет `launched`, сообщает ошибку один раз и завершает
-  dispatch.
+- Каждая выбранная задача сохраняет собственные marker, единственный create,
+  binding и title; глобального ограничения «одна активная задача» нет.
+- `launched` и работающие Runner не блокируют запуск другой выбранной
+  `queued` задачи.
+- `launching` запрещает второй create только для той же задачи;
+  он блокирует только Product handoff до обычного recovery и не блокирует независимые
+  task-dispatch транзакции.
+
+## Сценарий 3: Неоднозначный Product create
+
+### Given
+
+- Product создал один marker
+  `lazypowers.product-handoff.v1:<uuid>` и вызвал `create_thread` ровно один
+  раз.
+- Create вернул только асинхронный идентификатор либо исход операции
+  неоднозначен.
+
+### When / Then
+
+- Product выполняет ограниченный exact-marker lookup и дедуплицирует
+  кандидатов по exact thread ID.
+- Один distinct ID связывается автоматически; два или более требуют выбора
+  пользователя; ноль оставляет Product handoff неоднозначным.
+- `automatic replacement` запрещён: второй marker и второй `create_thread` не
+  создаются.
+- Пока один successor не связан и не назван точно `Lazypowers Product`, старый
+  Product сохраняет единственную Product-роль и не прекращает мутации.

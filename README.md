@@ -3,7 +3,9 @@
 Lazypowers is a thin, instruction-only Product dispatcher for Codex. It saves
 product specifications to a small manual queue and creates one separate visible
 task chat for each task the user chooses to launch. Official Superpowers owns
-all implementation work inside that task chat.
+all implementation work inside that task chat. On an explicit command, Product
+can also create one fresh Product chat in the same project and hand off its role
+without pausing the queue or active Runners.
 
 ## Prerequisites
 
@@ -36,7 +38,7 @@ codex plugin add lazypowers@lazypowers
 codex plugin list --marketplace lazypowers --json
 ```
 
-The plugin must report version `0.4.1`. In a new Product chat, invoke:
+The plugin must report version `0.4.3`. In a new Product chat, invoke:
 
 ```text
 $lazypowers:product Помоги описать задачу, сохранить её в очередь и запустить в отдельном чате.
@@ -50,6 +52,29 @@ $lazypowers:product Помоги описать задачу, сохранить
 3. Say «подтверждаю и запускай через $mini» to route the same standard spec to
    the configured Mac mini project.
 4. Continue all implementation conversation in the created task chat.
+5. Say «создай новый продуктовый чат» to create and name one successor Product
+   chat in the same project.
+
+### Optional external-task hook
+
+A project may opt in with `.lazypowers/external-tasks.yaml`:
+
+```yaml
+schema: lazypowers.external-tasks.v1
+skill: bitrix-tasks
+options:
+  group_id: "3284"
+  timezone: Europe/Kaliningrad
+  deadline: next-day-end
+```
+
+Before each direct or combined approval, Product fresh-reads the draft and
+dispatch record, then calls the configured personal skill once with the project
+root, fresh paths, title, and opaque options. This is fail-open: a missing
+skill, malformed config or result, or provider failure shows one warning and
+never blocks queueing or dispatch. Include «без задачи» in the current approval
+message to skip the hook for that approval; ordinary and combined flows still
+continue without another approval or automatic retry.
 
 Execution bindings are optional. When they are absent, Lazypowers and `$mini`
 use the platform's project, model, and reasoning defaults. Product resolves an
@@ -59,6 +84,27 @@ asynchronous create automatically and applies the exact title
 The task chat starts with `superpowers:writing-plans`, uses official
 Superpowers throughout, and may make at most three actual final-action attempts
 with systematic debugging between failures.
+
+## Product handoff
+
+The explicit command «создай новый продуктовый чат» creates exactly one
+successor named `Lazypowers Product`.
+
+- `draft`, `queued`, and `launched` records, including several active Runner
+  chats, do not block handoff and are not changed.
+- An unresolved `launching` record is recovered first and blocks only Product
+  handoff while it remains unresolved.
+- The successor fresh-reads applicable project instructions,
+  `refs/heads/main:docs/spec.md`, and canonical `.lazypowers/tasks/`; the queue
+  is never copied into the handoff.
+- Each task keeps its own independent create transaction, so there is no global
+  active-task limit.
+- The predecessor stops Product mutations only after one successor is bound and
+  named exactly. It does not monitor the successor or receive a callback.
+
+An ambiguous Product create is resolved by exact marker lookup and thread-ID
+deduplication. Zero matches stays ambiguous, and two or more require the user to
+choose one exact thread ID. Lazypowers never creates an automatic replacement.
 
 ## What Product does after launch
 
@@ -100,6 +146,10 @@ dispatch schema.
 - Title failure keeps the task `launched` and is reported once.
 - Missing capacity leaves the task queued with no background retry.
 - Missing Superpowers is handled in the task chat, not by Product.
+- External-task warnings are fail-open: Product shows one warning and continues
+  queueing or dispatch without retrying the provider.
+- Ambiguous Product handoff keeps the predecessor in the Product role and never
+  creates a replacement.
 
 ## Upgrade
 

@@ -1,7 +1,7 @@
 {
   "name": "lazypowers",
-  "version": "0.4.1+codex.20260728213758",
-  "description": "Instruction-only Product chat with a manual specification queue and one-way Superpowers task dispatch",
+  "version": "0.4.3+codex.20260729110524",
+  "description": "Instruction-only Product chat with a manual specification queue, one-way Superpowers task dispatch, and explicit Product-role handoff",
   "author": {
     "name": "Lazypowers contributors"
   },
@@ -15,18 +15,19 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Lazypowers",
-    "shortDescription": "Fast manual Superpowers dispatcher",
-    "longDescription": "Save product specifications to a small manual queue, create and name one visible Superpowers task chat on command, then stop monitoring it. The task chat owns implementation, Git, retries, permissions, deployment, and final reporting.",
+    "shortDescription": "Queue specs, launch tasks, and hand off Product",
+    "longDescription": "Save product specifications to a small manual queue, optionally make one fail-open external-task binding at approval, create and name independent Superpowers task chats, or explicitly hand the Product role to one fresh chat in the same project. Product never monitors task execution or its successor.",
     "developerName": "Lazypowers contributors",
     "category": "Productivity",
     "capabilities": [
       "Disk-backed specification drafts",
-      "Manual queue with optional approve-and-launch",
+      "Manual queue with optional approve-and-launch and fail-open external-task binding",
       "Automatic task-chat binding and exact titles",
-      "No Product monitoring after dispatch"
+      "Explicit nonblocking Product-role handoff",
+      "No Product monitoring after dispatch or handoff"
     ],
     "defaultPrompt": [
-      "Use $lazypowers:product to draft a specification, place it in the manual queue, and dispatch it to a separate Superpowers task chat."
+      "Use $lazypowers:product to draft, queue, launch, or hand off the Product role for this project."
     ]
   }
 }

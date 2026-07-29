@@ -1,4 +1,4 @@
 interface:
   display_name: "Lazypowers Product"
-  short_description: "Fast manual Superpowers dispatcher"
-  default_prompt: "Use $lazypowers:product to draft, queue, or explicitly approve and launch a specification in a separate Superpowers task chat."
+  short_description: "Queue specs, launch tasks, and hand off Product"
+  default_prompt: "Use $lazypowers:product to draft, queue, launch, or hand off the Product role for this project."
